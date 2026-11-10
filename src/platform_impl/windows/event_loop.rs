@@ -21,8 +21,8 @@ use windows_sys::Win32::Foundation::{
     GetLastError, FALSE, HANDLE, HWND, LPARAM, LRESULT, POINT, RECT, WAIT_FAILED, WPARAM,
 };
 use windows_sys::Win32::Graphics::Gdi::{
-    GetMonitorInfoW, MonitorFromRect, MonitorFromWindow, RedrawWindow, ScreenToClient,
-    ValidateRect, MONITORINFO, MONITOR_DEFAULTTONULL, RDW_INTERNALPAINT, SC_SCREENSAVE,
+    GetMonitorInfoW, MonitorFromRect, RedrawWindow, ScreenToClient, ValidateRect, MONITORINFO,
+    MONITOR_DEFAULTTONULL, RDW_INTERNALPAINT, SC_SCREENSAVE,
 };
 use windows_sys::Win32::System::Ole::RevokeDragDrop;
 use windows_sys::Win32::System::Threading::{
@@ -2346,7 +2346,13 @@ unsafe fn public_window_callback_inner(
 
                 // Check to see if the new window rect is on the monitor with the new DPI factor.
                 // If it isn't, offset the window so that it is.
-                let new_dpi_monitor = unsafe { MonitorFromWindow(window, MONITOR_DEFAULTTONULL) };
+                //
+                // The suggested rect lies on the monitor with the new DPI factor. While the user
+                // drags the window, Windows sends this message before it moves the window, so
+                // `MonitorFromWindow` would still return the old monitor and the offset would
+                // move the window back onto it.
+                let new_dpi_monitor =
+                    unsafe { MonitorFromRect(&suggested_rect, MONITOR_DEFAULTTONULL) };
                 let conservative_rect_monitor =
                     unsafe { MonitorFromRect(&conservative_rect, MONITOR_DEFAULTTONULL) };
                 new_outer_rect = if conservative_rect_monitor == new_dpi_monitor {
